@@ -1,0 +1,22 @@
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #2d1f16;
+  background:
+    radial-gradient(circle at top left, rgba(255, 239, 214, 0.9), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(222, 153, 107, 0.26), transparent 24%),
+    #f6efe4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code {
+  font-family: "Consolas", "Courier New", monospace;
+  background: rgba(143, 59, 36, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 6px;
+}
