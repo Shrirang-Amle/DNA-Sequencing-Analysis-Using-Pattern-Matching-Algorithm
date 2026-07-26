@@ -41,11 +41,10 @@ public class DNAService {
     private volatile Path cachedDatasetPath;
 
     public DNAService(
-        @Value("${dna.dataset.path:}") String configuredDatasetPath,
-        @Value("${dna.chunk.size:" + DEFAULT_CHUNK_SIZE + "}") int configuredChunkSize,
-        @Value("${dna.benchmark.sample.bases:" + DEFAULT_BENCHMARK_SAMPLE_BASES + "}") int benchmarkSampleBases,
-        @Value("${dna.quick.scan.bases:" + DEFAULT_QUICK_SCAN_BASES + "}") int quickScanBases
-    ) {
+            @Value("${dna.dataset.path:}") String configuredDatasetPath,
+            @Value("${dna.chunk.size:" + DEFAULT_CHUNK_SIZE + "}") int configuredChunkSize,
+            @Value("${dna.benchmark.sample.bases:" + DEFAULT_BENCHMARK_SAMPLE_BASES + "}") int benchmarkSampleBases,
+            @Value("${dna.quick.scan.bases:" + DEFAULT_QUICK_SCAN_BASES + "}") int quickScanBases) {
         this.configuredDatasetPath = configuredDatasetPath == null ? "" : configuredDatasetPath.trim();
         this.configuredChunkSize = Math.max(configuredChunkSize, DEFAULT_CHUNK_SIZE);
         this.benchmarkSampleBases = Math.max(benchmarkSampleBases, 10_000);
@@ -169,7 +168,8 @@ public class DNAService {
             }
 
             if (buffer.length() > 0) {
-                processExactWindow(buffer.toString(), processedBases, buffer.length(), pattern, accumulators, previewSnippets);
+                processExactWindow(buffer.toString(), processedBases, buffer.length(), pattern, accumulators,
+                        previewSnippets);
                 processedBases += buffer.length();
             }
         } catch (IOException exception) {
@@ -210,49 +210,50 @@ public class DNAService {
     }
 
     private void processExactWindow(
-        String window,
-        long globalOffset,
-        int commitLength,
-        String pattern,
-        Map<String, SearchAccumulator> accumulators,
-        List<Map<String, Object>> previewSnippets
-    ) {
+            String window,
+            long globalOffset,
+            int commitLength,
+            String pattern,
+            Map<String, SearchAccumulator> accumulators,
+            List<Map<String, Object>> previewSnippets) {
         if (window.length() < pattern.length()) {
             return;
         }
 
-        runAlgorithm("kmp", window, pattern, globalOffset, commitLength, accumulators.get("kmp"), previewSnippets, true, KMP::search);
-        runAlgorithm("rabin", window, pattern, globalOffset, commitLength, accumulators.get("rabin"), previewSnippets, false, RabinKarp::search);
+        runAlgorithm("kmp", window, pattern, globalOffset, commitLength, accumulators.get("kmp"), previewSnippets, true,
+                KMP::search);
+        runAlgorithm("rabin", window, pattern, globalOffset, commitLength, accumulators.get("rabin"), previewSnippets,
+                false, RabinKarp::search);
     }
 
     private void runBenchmarkAlgorithms(
-        String sample,
-        String pattern,
-        Map<String, SearchAccumulator> accumulators
-    ) {
+            String sample,
+            String pattern,
+            Map<String, SearchAccumulator> accumulators) {
         if (sample.length() < pattern.length()) {
             accumulators.get("naive").scopeBases = sample.length();
             accumulators.get("hamming").scopeBases = sample.length();
             return;
         }
 
-        runAlgorithm("naive", sample, pattern, 0L, sample.length(), accumulators.get("naive"), List.of(), false, Naive::search);
-        runAlgorithm("hamming", sample, pattern, 0L, sample.length(), accumulators.get("hamming"), List.of(), false, ApproxMatch::hamming);
+        runAlgorithm("naive", sample, pattern, 0L, sample.length(), accumulators.get("naive"), List.of(), false,
+                Naive::search);
+        runAlgorithm("hamming", sample, pattern, 0L, sample.length(), accumulators.get("hamming"), List.of(), false,
+                ApproxMatch::hamming);
         accumulators.get("naive").scopeBases = sample.length();
         accumulators.get("hamming").scopeBases = sample.length();
     }
 
     private void runAlgorithm(
-        String algorithmKey,
-        String window,
-        String pattern,
-        long globalOffset,
-        int commitLength,
-        SearchAccumulator accumulator,
-        List<Map<String, Object>> previewSnippets,
-        boolean collectPreview,
-        BiFunction<String, String, List<Integer>> algorithm
-    ) {
+            String algorithmKey,
+            String window,
+            String pattern,
+            long globalOffset,
+            int commitLength,
+            SearchAccumulator accumulator,
+            List<Map<String, Object>> previewSnippets,
+            boolean collectPreview,
+            BiFunction<String, String, List<Integer>> algorithm) {
         AtomicReference<List<Integer>> localMatches = new AtomicReference<>(List.of());
         long elapsedMicros = Performance.measure(() -> localMatches.set(algorithm.apply(window, pattern)));
         accumulator.timeMicros += elapsedMicros;
@@ -274,7 +275,8 @@ public class DNAService {
         }
     }
 
-    private Map<String, Object> buildPreview(String window, int index, int patternLength, long absoluteIndex, String algorithmKey) {
+    private Map<String, Object> buildPreview(String window, int index, int patternLength, long absoluteIndex,
+            String algorithmKey) {
         int beforeStart = Math.max(0, index - PREVIEW_CONTEXT);
         int afterEnd = Math.min(window.length(), index + patternLength + PREVIEW_CONTEXT);
 
@@ -328,7 +330,7 @@ public class DNAService {
 
     private String humanReadableSize(long bytes) {
         double size = bytes;
-        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        String[] units = { "B", "KB", "MB", "GB", "TB" };
         int unitIndex = 0;
         while (size >= 1024 && unitIndex < units.length - 1) {
             size /= 1024;
@@ -338,35 +340,44 @@ public class DNAService {
     }
 
     private Path resolveDatasetPath() {
+
         Path resolved = cachedDatasetPath;
         if (resolved != null) {
             return resolved;
         }
 
         List<Path> candidates = new ArrayList<>();
+
+        // 1. Path from application.properties
         if (!configuredDatasetPath.isEmpty()) {
-            Path configured = Paths.get(configuredDatasetPath).normalize();
+
+            Path configured = Paths.get(configuredDatasetPath);
+
             if (configured.isAbsolute()) {
-                candidates.add(configured);
+                candidates.add(configured.normalize());
             } else {
-                for (Path baseDirectory : getSearchRoots()) {
-                    candidates.add(baseDirectory.resolve(configured).normalize());
-                }
+                candidates.add(Paths.get("").toAbsolutePath().resolve(configured).normalize());
             }
         }
 
-        for (Path baseDirectory : getSearchRoots()) {
-            addDatasetDirectoryCandidates(baseDirectory.resolve("Dataset"), candidates);
-        }
+        // 2. Large genome (local)
+        candidates.add(Paths.get("").toAbsolutePath()
+                .resolve("Dataset/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna"));
 
-        for (Path candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                cachedDatasetPath = candidate.toAbsolutePath().normalize();
+        // 3. Sample dataset (GitHub / Render)
+        candidates.add(Paths.get("").toAbsolutePath()
+                .resolve("Dataset/sample.fna"));
+
+        for (Path path : candidates) {
+
+            if (Files.exists(path) && Files.isRegularFile(path)) {
+                cachedDatasetPath = path.toAbsolutePath().normalize();
                 return cachedDatasetPath;
             }
         }
 
-        throw new IllegalStateException("No .fna dataset file was found in the Dataset folder.");
+        throw new IllegalStateException(
+                "Dataset not found. Place sample.fna inside Dataset folder.");
     }
 
     private List<Path> getSearchRoots() {
@@ -376,8 +387,8 @@ public class DNAService {
 
         try {
             Path codeSource = Paths.get(
-                DNAService.class.getProtectionDomain().getCodeSource().getLocation().toURI()
-            ).toAbsolutePath().normalize();
+                    DNAService.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toAbsolutePath()
+                    .normalize();
 
             if (Files.isRegularFile(codeSource)) {
                 codeSource = codeSource.getParent();
@@ -408,10 +419,10 @@ public class DNAService {
 
         try (Stream<Path> datasetFiles = Files.list(datasetDirectory)) {
             datasetFiles
-                .filter(Files::isRegularFile)
-                .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".fna"))
-                .sorted(Comparator.comparing(path -> path.getFileName().toString()))
-                .forEach(candidates::add);
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".fna"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .forEach(candidates::add);
         } catch (IOException exception) {
             throw new UncheckedIOException("Failed to inspect dataset directory: " + datasetDirectory, exception);
         }
