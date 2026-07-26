@@ -6,7 +6,6 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*")
 public class DNAController {
 
     private final DNAService service;
@@ -23,10 +22,9 @@ public class DNAController {
     @PostMapping("/analyze")
     public Map<String, Object> analyze(@RequestBody Map<String, String> input) {
         return service.analyze(
-            input.get("dna"),
-            input.get("pattern"),
-            input.get("mode"),
-            input.get("scanMode")
-        );
+                input.get("dna"),
+                input.get("pattern"),
+                input.get("mode"),
+                input.get("scanMode"));
     }
 }
