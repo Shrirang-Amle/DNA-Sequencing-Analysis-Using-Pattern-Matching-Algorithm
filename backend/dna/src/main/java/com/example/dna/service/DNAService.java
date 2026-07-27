@@ -341,43 +341,14 @@ public class DNAService {
 
     private Path resolveDatasetPath() {
 
-        Path resolved = cachedDatasetPath;
-        if (resolved != null) {
-            return resolved;
-        }
+        Path path = Paths.get(configuredDatasetPath).toAbsolutePath().normalize();
 
-        List<Path> candidates = new ArrayList<>();
-
-        // 1. Path from application.properties
-        if (!configuredDatasetPath.isEmpty()) {
-
-            Path configured = Paths.get(configuredDatasetPath);
-
-            if (configured.isAbsolute()) {
-                candidates.add(configured.normalize());
-            } else {
-                candidates.add(Paths.get("").toAbsolutePath().resolve(configured).normalize());
-            }
-        }
-
-        // 2. Large genome (local)
-        candidates.add(Paths.get("").toAbsolutePath()
-                .resolve("Dataset/GCF_009914755.1_T2T-CHM13v2.0_genomic.fna"));
-
-        // 3. Sample dataset (GitHub / Render)
-        candidates.add(Paths.get("").toAbsolutePath()
-                .resolve("Dataset/sample.fna"));
-
-        for (Path path : candidates) {
-
-            if (Files.exists(path) && Files.isRegularFile(path)) {
-                cachedDatasetPath = path.toAbsolutePath().normalize();
-                return cachedDatasetPath;
-            }
+        if (Files.exists(path)) {
+            return path;
         }
 
         throw new IllegalStateException(
-                "Dataset not found. Place sample.fna inside Dataset folder.");
+                "Dataset not found: " + path);
     }
 
     private List<Path> getSearchRoots() {
